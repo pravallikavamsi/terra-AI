@@ -1,4 +1,4 @@
-name: GCP Terraform Production Apply
+name: Terraform Production Apply
 
 on:
   workflow_dispatch:
