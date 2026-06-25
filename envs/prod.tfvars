@@ -1,0 +1,6 @@
+gcp_project_id = "project-db4289c5-c4ee-4464-af7"
+gcp_region     = "asia-south1"
+gcp_zone       = "asia-south1-a"
+project_name   = "terraform-ai-prod"
+environment    = "prod"
+my_ip = "34.93.207.117/32"
