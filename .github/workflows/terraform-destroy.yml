@@ -1,0 +1,63 @@
+name: GCP Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to destroy"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-destroy:
+    runs-on: [self-hosted, linux, x64]
+
+    environment:
+      name: ${{ github.event.inputs.environment == 'prod' && 'production' || 'development' }}
+
+    env:
+      TF_IN_AUTOMATION: true
+      TF_ENV: ${{ github.event.inputs.environment }}
+      TFVARS_FILE: envs/${{ github.event.inputs.environment }}.tfvars
+      BACKEND_CONFIG: backend-${{ github.event.inputs.environment }}.hcl
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check tools
+        run: |
+          terraform version
+          gcloud --version
+          gcloud auth list
+          gcloud config list project
+
+      - name: Terraform init
+        run: terraform init -input=false -reconfigure -backend-config=$BACKEND_CONFIG
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform destroy plan
+        run: terraform plan -destroy -input=false -var-file=$TFVARS_FILE -out=destroy.tfplan
+
+      - name: Show destroy plan
+        run: terraform show -no-color destroy.tfplan
+
+      - name: Send Slack destroy warning
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"⚠️ GCP Terraform destroy started for environment: $TF_ENV by $GITHUB_ACTOR\"}" \
+          $SLACK_WEBHOOK_URL
+
+      - name: Terraform destroy
+        run: terraform apply -input=false -auto-approve destroy.tfplan
